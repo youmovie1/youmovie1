@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reproductor M3U con Imágenes desde URL</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: auto;
+        }
+        input {
+            display: block;
+            margin-bottom: 20px;
+            width: 100%;
+            padding: 10px;
+        }
+        .thumbnail {
+            display: inline-block;
+            position: relative;
+            margin: 10px;
+            width: 200px;
+            cursor: pointer;
+        }
+        .thumbnail img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .thumbnail .diagonal-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            background-color: rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+        }
+        .thumbnail div[data-title] {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Reproductor de Listas M3U con Imágenes desde URL</h1>
+
+    <input type="text" id="m3uUrlInput" placeholder="Ingresa la URL del archivo .m3u">
+    <button onclick="fetchM3U()">Cargar M3U</button>
+
+    <div id="videoList"></div>
+
+    <script>
+        function fetchM3U() {
+            const url = document.getElementById('m3uUrlInput').value;
+            if (url) {
+                fetch(url)
+                    .then(response => response.text())
+                    .then(data => {
+                        parseM3U(data);
+                    })
+                    .catch(error => {
+                        console.error('Error al cargar el archivo M3U:', error);
+                    });
+            } else {
+                alert('Por favor, ingresa una URL válida.');
+            }
+        }
+
+        function parseM3U(content) {
+            const lines = content.split('\n');
+            const videoList = document.getElementById('videoList');
+            videoList.innerHTML = ''; // Limpiar la lista anterior
+
+            let videoName = '';
+            let videoUrl = '';
+            let videoLogo = 'https://cdn-icons-png.flaticon.com/512/1160/1160358.png'; // Default image if no logo found
+
+            lines.forEach(line => {
+                line = line.trim();
+
+                if (line.startsWith('#EXTINF')) {
+                    const parts = line.split(',');
+                    videoName = parts[1]; // Nombre del video
+
+                    // Buscar si hay una imagen logo en el formato logo="url"
+                    const logoMatch = line.match(/logo="(.*?)"/);
+                    if (logoMatch) {
+                        videoLogo = logoMatch[1]; // URL del logo encontrado
+                    }
+                } else if (line && !line.startsWith('#')) {
+                    videoUrl = line; // URL del video
+
+                    // Crear el div para mostrar el video en formato de "thumbnail"
+                    const thumbnailDiv = document.createElement('div');
+                    thumbnailDiv.classList.add('thumbnail');
+                    thumbnailDiv.dataset.genres = "Aventura"; // Puedes ajustar esto si hay géneros en el archivo M3U
+                    thumbnailDiv.dataset.title = videoName;
+                    thumbnailDiv.dataset.url = videoUrl; // Guardar el URL del video en el dataset del div
+                    thumbnailDiv.onclick = () => openFullscreenVideo(thumbnailDiv.dataset.url);
+
+                    thumbnailDiv.innerHTML = `
+                        <img src="${videoLogo}" alt="${videoName}">
+                        <div class="diagonal-bar"></div>
+                        <div data-title="${videoName}">${videoName}</div>
+                    `;
+
+                    videoList.appendChild(thumbnailDiv);
+
+                    // Resetear la imagen del logo para el próximo elemento
+                    videoLogo = 'https://cdn-icons-png.flaticon.com/512/1160/1160358.png'; // Volver al default si no hay otro logo
+                }
+            });
+        }
+
+        function openFullscreenVideo(fullUrl) {
+            // Crear un elemento videoPlayer
+            const videoPlayer = document.createElement('video');
+            videoPlayer.src = fullUrl;
+            videoPlayer.style.position = 'absolute';
+            videoPlayer.style.top = '0';
+            videoPlayer.style.left = '0';
+            videoPlayer.style.width = '100%';
+            videoPlayer.style.height = '100%';
+            videoPlayer.style.border = 'none';
+            videoPlayer.controls = true; // Agregar controles al reproductor de video
+            videoPlayer.autoplay = true;
+
+            document.body.appendChild(videoPlayer);
+
+            // Manejo de pantalla completa
+            if (videoPlayer.requestFullscreen) {
+                videoPlayer.requestFullscreen();
+            } else if (videoPlayer.mozRequestFullScreen) {
+                videoPlayer.mozRequestFullScreen();
+            } else if (videoPlayer.webkitRequestFullscreen) {
+                videoPlayer.webkitRequestFullscreen();
+            } else if (videoPlayer.msRequestFullscreen) {
+                videoPlayer.msRequestFullscreen();
+            }
+
+            document.addEventListener('fullscreenchange', exitHandler);
+            document.addEventListener('webkitfullscreenchange', exitHandler);
+
+            function exitHandler() {
+                if (!document.fullscreenElement && !document.webkitIsFullScreen) {
+                    document.body.removeChild(videoPlayer);
+                    document.removeEventListener('fullscreenchange', exitHandler);
+                    document.removeEventListener('webkitfullscreenchange', exitHandler);
+                }
+            }
+
+            videoPlayer.addEventListener('contextmenu', (event) => event.preventDefault());
+        }
+    </script>
+
+</body>
+</html>
